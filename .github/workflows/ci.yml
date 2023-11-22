@@ -1,0 +1,36 @@
+name: OAR
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        python-version: ['3.8']
+      fail-fast: false
+    runs-on: ubuntu-20.04
+
+    env:
+      OAR_VERSION: 2.5.9
+
+    steps:
+      - name: Disable etelemetry
+        run: echo "NO_ET=TRUE" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+      - name: Install oardocker
+        run: |
+          python3 -m venv oardocker
+          cd oardocker
+          source bin/activate
+          pip install oar-docker
+          oardocker init -e bullseye
+          oardocker build
+          oardocker install http://oar-ftp.imag.fr/oar/2.5/sources/stable/oar-$OAR_VERSION.tar.gz
+          oardocker start -n 2 -v $PWD:/pydra -e NO_ET=$NO_ET
+          docker ps -a
+          cat /proc/1/cgroup
+          oardocker exec --no-tty frontend echo $NO_ET
+          oardocker exec --no-tty frontend pip install codecov
+          oardocker exec --no-tty frontend ls -la /pydra && echo list pydra dir
